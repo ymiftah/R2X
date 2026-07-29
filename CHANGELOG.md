@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.1](https://github.com/NatLabRockies/R2X/compare/r2x-v2.1.0...r2x-v2.1.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* mix fixes across packages based on recent runs and observations ([#289](https://github.com/NatLabRockies/R2X/issues/289)) ([8f1e6f5](https://github.com/NatLabRockies/R2X/commit/8f1e6f5e9157b65d7d7cf9577be6211c9632c756))
+* remove capacity factor getter entry from r2p translations ([#285](https://github.com/NatLabRockies/R2X/issues/285)) ([d083095](https://github.com/NatLabRockies/R2X/commit/d083095940e9b37d39be510a718a377df73a1b93))
+* resolve r2p load participation factor for region/nodes ([#282](https://github.com/NatLabRockies/R2X/issues/282)) ([051fc89](https://github.com/NatLabRockies/R2X/commit/051fc89bbb8ed478faabd92a6affc5106f3a08bc))
+
 ## [2.1.0](https://github.com/NatLabRockies/R2X/compare/r2x-v2.0.0...r2x-v2.1.0) (2026-06-22)
 
 
