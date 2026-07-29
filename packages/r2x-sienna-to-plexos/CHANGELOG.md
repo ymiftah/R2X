@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/NatLabRockies/R2X/compare/r2x-sienna-to-plexos-v0.2.0...r2x-sienna-to-plexos-v0.2.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* mix fixes across packages based on recent runs and observations ([#289](https://github.com/NatLabRockies/R2X/issues/289)) ([8f1e6f5](https://github.com/NatLabRockies/R2X/commit/8f1e6f5e9157b65d7d7cf9577be6211c9632c756))
+
 ## [0.2.0](https://github.com/NatLabRockies/R2X/compare/r2x-sienna-to-plexos-v0.1.0...r2x-sienna-to-plexos-v0.2.0) (2026-06-22)
 
 
