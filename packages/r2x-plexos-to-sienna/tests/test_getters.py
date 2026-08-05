@@ -196,7 +196,7 @@ def test_get_gen_start_types():
 
 def test_get_prime_mover_type_default(monkeypatch):
     # Patch _get_prime_mover_type to avoid file access
-    monkeypatch.setattr(getters, "_get_prime_mover_type", lambda category: "OT")
+    monkeypatch.setattr(getters, "_get_prime_mover_type", lambda category, context=None: "OT")
     node = cast(PLEXOSGenerator, types.SimpleNamespace(category=None))
     result = cast(Result[str, Any], get_prime_mover_type(node, None))
     assert result.value == "OT"

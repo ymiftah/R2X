@@ -303,7 +303,7 @@
       "fuel": "get_fuel_type"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "thermal",
@@ -357,7 +357,7 @@
       "services": "get_device_services"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "thermal-multi-start"
@@ -393,7 +393,7 @@
       "time_limits": "get_gen_time_limits"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "hydro-dispatch",
@@ -441,7 +441,7 @@
       "prime_mover_type": "get_prime_mover_type"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "pumped-hydro",
@@ -472,7 +472,7 @@
       "operation_cost": "get_hydro_reservoir_operation_cost"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "pumped-hydro"
@@ -504,7 +504,7 @@
       "power_factor": "get_gen_power_factor"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "renewable-dispatch",
@@ -540,7 +540,7 @@
       "prime_mover_type": "get_prime_mover_type"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "renewable-non-dispatch",
@@ -571,7 +571,7 @@
       "active_power_losses": "get_gen_active_power_losses"
     },
     "filter": {
-      "field": "category",
+      "getter": "get_normalized_category",
       "op": "in",
       "values": [
         "synchronous-condenser"

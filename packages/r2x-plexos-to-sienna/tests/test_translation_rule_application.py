@@ -395,3 +395,84 @@ def test_multiple_nodes_create_multiple_buses(tmp_path) -> None:
     bus3 = next((b for b in buses if b.name == "NODE_3"), None)
     assert bus3 is not None
     assert bus3.base_voltage.magnitude == 230.0
+
+
+def test_technology_mapping_routes_unrecognized_categories(tmp_path) -> None:
+    """Regression test: source models with their own category vocabulary
+    (e.g. AEMO's ISP model uses "Black Coal NSW", "Wind SA", ... instead
+    of the ReEDS-style buckets the rules' filters are written against)
+    must still be routed to the right Sienna type via
+    `PlexosToSiennaConfig.technology_mapping`, without losing the
+    original category string on the translated component.
+
+    Without `technology_mapping` wired into the rule filters (via the
+    `get_normalized_category` getter), a generator with an unrecognized
+    category like "Black Coal NSW" would fail every rule's filter and be
+    silently dropped from the translated system entirely.
+    """
+    from plexosdb import CollectionEnum
+    from r2x_plexos.models import PLEXOSGenerator, PLEXOSMembership, PLEXOSNode, PLEXOSRegion
+    from r2x_plexos_to_sienna import PlexosToSiennaConfig
+    from r2x_sienna.models import RenewableDispatch, ThermalStandard
+
+    rules_path = files("r2x_plexos_to_sienna.config") / "rules.json"
+    rules = Rule.from_records(json.loads(rules_path.read_text()))
+    config = PlexosToSiennaConfig(
+        models=("r2x_plexos.models", "r2x_sienna.models", "r2x_plexos_to_sienna.getters"),
+        technology_mapping={
+            "category": {
+                "Black Coal NSW": "coal",
+                "Wind SA": "wind-ons",
+            }
+        },
+    )
+    store = DataStore.from_plugin_config(config, path=tmp_path)
+    context = PluginContext(config=config, store=store)
+    context.source_system = System(name="source", auto_add_composed_components=True)
+
+    node = PLEXOSNode(name="NODE1", voltage=115.0)
+    context.source_system.add_component(node)
+    region = PLEXOSRegion(name="REGION1", load=100.0)
+    context.source_system.add_component(region)
+    membership = PLEXOSMembership(collection=CollectionEnum.Region, parent_object=node, child_object=region)
+    context.source_system.add_supplemental_attribute(region, membership)
+    context.source_system.add_supplemental_attribute(node, membership)
+
+    coal = PLEXOSGenerator(name="COAL1", category="Black Coal NSW", max_capacity=500.0, units=1)
+    context.source_system.add_component(coal)
+    wind = PLEXOSGenerator(name="WIND1", category="Wind SA", max_capacity=80.0, units=1)
+    context.source_system.add_component(wind)
+    # An unmapped, unrecognized category should still fail to match (no
+    # silent fallback) so bad data is visible rather than mis-typed.
+    unknown = PLEXOSGenerator(name="UNKNOWN1", category="Some Unmapped Category", max_capacity=10.0, units=1)
+    context.source_system.add_component(unknown)
+
+    for gen in [coal, wind, unknown]:
+        gen_membership = PLEXOSMembership(
+            collection=CollectionEnum.Nodes, parent_object=gen, child_object=node
+        )
+        context.source_system.add_supplemental_attribute(gen, gen_membership)
+        context.source_system.add_supplemental_attribute(node, gen_membership)
+
+    context.target_system = System(name="target", auto_add_composed_components=True)
+    context.rules = rules
+
+    apply_rules_to_context(context)
+
+    thermals = list(context.target_system.get_components(ThermalStandard))
+    coal_gen = next((t for t in thermals if t.name == "COAL1"), None)
+    assert coal_gen is not None
+    # The original AEMO category label is preserved on the translated
+    # component, not overwritten with the normalized bucket used for
+    # filter matching.
+    assert coal_gen.category == "Black Coal NSW"
+
+    renewables = list(context.target_system.get_components(RenewableDispatch))
+    wind_gen = next((r for r in renewables if r.name == "WIND1"), None)
+    assert wind_gen is not None
+    assert wind_gen.category == "Wind SA"
+
+    all_target_names = {c.name for c in context.target_system.get_components(ThermalStandard)} | {
+        c.name for c in context.target_system.get_components(RenewableDispatch)
+    }
+    assert "UNKNOWN1" not in all_target_names

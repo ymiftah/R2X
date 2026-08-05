@@ -215,19 +215,41 @@ def extract_number_from_name(name: str) -> int:
             return PLEXOS_NUMBER_COUNTER
 
 
-def _get_prime_mover_type(category: str) -> PrimeMoversType:
+def _normalize_category(category: str, context: PluginContext | None) -> str:
+    """Map a source-specific category (e.g. AEMO's "Black Coal NSW") to the
+    canonical technology bucket (e.g. "coal") that rule filters, prime mover
+    mapping, and fuel type mapping all key off of.
+
+    Driven by `PlexosToSiennaConfig.technology_mapping["category"]`, a
+    ``{source_category: bucket}`` dict supplied by the caller for source
+    models (like AEMO's ISP) whose category strings don't already match the
+    ReEDS-style buckets baked into defaults.json and rules.json. Categories
+    not present in the mapping pass through unchanged, so models that
+    already use the ReEDS-style buckets keep working with no config needed.
+    """
+    if context is not None:
+        mapping = getattr(context.config, "technology_mapping", None) or {}
+        category_map = mapping.get("category", {})
+        if category in category_map:
+            return category_map[category]
+    return category
+
+
+def _get_prime_mover_type(category: str, context: PluginContext | None = None) -> PrimeMoversType:
     defaults_path = files("r2x_plexos_to_sienna.config") / "defaults.json"
     with defaults_path.open() as f:
         defaults = json.load(f)
+    category = _normalize_category(category, context)
     code = defaults.get("prime_mover_types", {}).get(category, "OT")
     return getattr(PrimeMoversType, code, PrimeMoversType.OT)
 
 
-def _get_fuel_type(category: str) -> ThermalFuels:
+def _get_fuel_type(category: str, context: PluginContext | None = None) -> ThermalFuels:
     """Map a generator category to a ThermalFuels enum value via defaults.json."""
     defaults_path = files("r2x_plexos_to_sienna.config") / "defaults.json"
     with defaults_path.open() as f:
         defaults = json.load(f)
+    category = _normalize_category(category, context)
     name = defaults.get("fuel_types", {}).get(category, "NATURAL_GAS")
     return getattr(ThermalFuels, name, ThermalFuels.NATURAL_GAS)
 
@@ -743,8 +765,24 @@ def get_prime_mover_type(
 ) -> Result[str, Any]:
     """Get the prime mover type of a generator by mapping file."""
     category = getattr(component, "category", None)
-    value = _get_prime_mover_type(str(category))
+    value = _get_prime_mover_type(str(category), context)
     return Ok(value)
+
+
+@getter
+def get_normalized_category(
+    component: PLEXOSGenerator | PLEXOSStorage, context: PluginContext
+) -> Result[str, Any]:
+    """Get a component's category normalized to the canonical technology
+    bucket rule filters key off of (see `_normalize_category`). Used by
+    rule filters instead of a plain ``category`` field lookup so source
+    models with their own category vocabulary (e.g. AEMO's ISP) can still
+    be routed to the right target type via `technology_mapping`, while the
+    component's original ``category`` value (copied through by each rule's
+    field_map) is left untouched.
+    """
+    category = str(getattr(component, "category", None) or "")
+    return Ok(_normalize_category(category, context))
 
 
 @getter
@@ -789,7 +827,7 @@ def get_thermal_operation_cost(
 def get_fuel_type(component: PLEXOSGenerator, context: PluginContext) -> Result[ThermalFuels, Any]:
     """Get the fuel type of a generator by mapping its category via defaults.json."""
     category = str(getattr(component, "category", "") or "")
-    return Ok(_get_fuel_type(category))
+    return Ok(_get_fuel_type(category, context))
 
 
 @getter
