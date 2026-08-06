@@ -74,7 +74,10 @@ def test_plexos_node_translates_to_acbus(tmp_path) -> None:
     assert bus is not None
     assert bus.number == 123
     assert bus.base_voltage.magnitude == 115.0
-    assert bus.bustype == ACBusTypes.PQ
+    # Only node in the system and no is_slack_bus set anywhere — the
+    # fallback deterministically designates it slack (PSY networks require
+    # exactly one).
+    assert bus.bustype == ACBusTypes.SLACK
 
 
 def test_plexos_region_translates_to_area(tmp_path) -> None:

@@ -267,17 +267,30 @@ def test_basic_node_getters(tmp_path) -> None:
     context.target_system = System(name="target")
 
     node = PLEXOSNode(name="NODE_123", voltage=115.0, is_slack_bus=0)
+    other_node = PLEXOSNode(name="NODE_456", voltage=115.0, is_slack_bus=0)
     context.source_system.add_component(node)
+    context.source_system.add_component(other_node)
 
     # Test node getters
     assert getters.get_node_number(node, context).unwrap() == 123
     assert getters.get_base_voltage(node, context).unwrap() == 115.0
     assert getters.get_node_angle(node, context).unwrap() == 0.0
-    assert getters.is_slack_bus(node, context).unwrap() == ACBusTypes.PQ
+    # Neither node sets is_slack_bus and neither has connected generation,
+    # so the fallback deterministically picks one (alphabetically first) —
+    # PSY networks require exactly one slack bus.
+    assert getters.is_slack_bus(node, context).unwrap() == ACBusTypes.SLACK
+    assert getters.is_slack_bus(other_node, context).unwrap() == ACBusTypes.PQ
 
-    # Test slack bus
+    # Test slack bus explicitly set — no fallback needed, and other nodes
+    # in the same system correctly stay PQ.
+    slack_context = make_context(tmp_path)
+    slack_context.source_system = System(name="slack_source")
     slack_node = PLEXOSNode(name="SLACK_1", is_slack_bus=1)
-    assert getters.is_slack_bus(slack_node, context).unwrap() == ACBusTypes.SLACK
+    pq_node = PLEXOSNode(name="PQ_1", is_slack_bus=0)
+    slack_context.source_system.add_component(slack_node)
+    slack_context.source_system.add_component(pq_node)
+    assert getters.is_slack_bus(slack_node, slack_context).unwrap() == ACBusTypes.SLACK
+    assert getters.is_slack_bus(pq_node, slack_context).unwrap() == ACBusTypes.PQ
 
 
 def test_zone_getters(tmp_path) -> None:
@@ -376,7 +389,9 @@ def test_generator_getters(tmp_path) -> None:
     assert getters.get_gen_active_power(gen, context).unwrap() == 100.0
     assert getters.get_gen_reactive_power(gen, context).unwrap() == 0.0
     assert getters.get_gen_rating(gen, context).unwrap() == 100.0
-    assert getters.get_gen_base_power(gen, context).unwrap() == 0.0
+    # PLEXOSGenerator has no base_power field — falls back to max_capacity
+    # (Sienna/PSY convention: base_power == rated capacity when unset).
+    assert getters.get_gen_base_power(gen, context).unwrap() == 100.0
 
     limits = getters.get_gen_active_power_limits(gen, context).unwrap()
     assert limits.min == 0.0

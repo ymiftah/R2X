@@ -420,12 +420,67 @@ def get_node_number(component: PLEXOSNode, context: PluginContext) -> Result[int
     return Ok(1)
 
 
+FALLBACK_SLACK_BUS_CACHE_KEY = "p2s_fallback_slack_bus"
+
+
+def _determine_fallback_slack_bus(context: PluginContext) -> str | None:
+    """Pick a fallback slack bus name, or None if a real one is already set.
+
+    PSY networks require exactly one slack bus, but economic-dispatch
+    PLEXOS models (like AEMO's ISP) have no electrical slack-bus concept —
+    `is_slack_bus` is unset on every node. Falls back to the node with the
+    largest aggregate connected generation capacity (the usual power-flow
+    convention of anchoring the slack at the biggest hub). Computed once
+    per translation and cached on the context.
+    """
+    cache = context._cache.setdefault(FALLBACK_SLACK_BUS_CACHE_KEY, {})
+    if "chosen" in cache:
+        return cache["chosen"]
+
+    chosen: str | None = None
+    if context.source_system is not None:
+        nodes = list(context.source_system.get_components(PLEXOSNode))
+        if nodes and not any(getattr(n, "is_slack_bus", 0) == 1 for n in nodes):
+            capacity_by_node: dict[str, float] = {}
+            for gen in context.source_system.get_components(PLEXOSGenerator):
+                memberships = context.source_system.get_supplemental_attributes_with_component(gen)
+                for m in memberships:
+                    if (
+                        hasattr(m, "collection")
+                        and m.collection == CollectionEnum.Nodes
+                        and hasattr(m, "child_object")
+                        and m.child_object is not None
+                        and hasattr(m.child_object, "name")
+                    ):
+                        node_name = m.child_object.name
+                        capacity_by_node[node_name] = capacity_by_node.get(
+                            node_name, 0.0
+                        ) + _get_rated_capacity(gen)
+                        break
+            if capacity_by_node:
+                chosen = max(capacity_by_node, key=lambda name: capacity_by_node[name])
+            else:
+                chosen = sorted(n.name for n in nodes)[0]
+
+    cache["chosen"] = chosen
+    return chosen
+
+
 @getter
 def is_slack_bus(component: PLEXOSNode, context: PluginContext) -> Result[ACBusTypes, Any]:
-    """Return ACBusTypes.SLACK if component.bustype == 1, else ACBusTypes.PQ."""
+    """Return ACBusTypes.SLACK if component.bustype == 1, else ACBusTypes.PQ.
+
+    Falls back to a deterministically chosen bus (see
+    `_determine_fallback_slack_bus`) when no node in the source model sets
+    `is_slack_bus` at all.
+    """
     value = getattr(component, "is_slack_bus", 0)
-    bustype = ACBusTypes.SLACK if value == 1 else ACBusTypes.PQ
-    return Ok(bustype)
+    if value == 1:
+        return Ok(ACBusTypes.SLACK)
+    fallback = _determine_fallback_slack_bus(context)
+    if fallback is not None and component.name == fallback:
+        return Ok(ACBusTypes.SLACK)
+    return Ok(ACBusTypes.PQ)
 
 
 @getter
@@ -701,18 +756,40 @@ def get_gen_start_types(component: PLEXOSGenerator, context: PluginContext) -> R
     return Ok(value)
 
 
-@getter
-def get_gen_rating(component: PLEXOSGenerator, context: PluginContext) -> Result[float, Any]:
-    """Get the rating of a generator."""
-    value = getattr(component, "max_capacity", 0.0)
-    return Ok(float(value))
+def _get_rated_capacity(component: Any) -> float:
+    """Get a component's rated capacity in MW.
+
+    PLEXOSGenerator carries this as `max_capacity`; PLEXOSBattery has no
+    `max_capacity` field at all (it uses `max_power` instead) — reading
+    `max_capacity` off a battery always silently returns the 0.0 default.
+    Falls through both names so both source types resolve correctly.
+    """
+    value = getattr(component, "max_capacity", 0.0) or 0.0
+    if value:
+        return float(value)
+    return float(getattr(component, "max_power", 0.0) or 0.0)
 
 
 @getter
-def get_gen_base_power(component: PLEXOSGenerator, context: PluginContext) -> Result[float, Any]:
-    """Get the base power of a generator."""
-    value = getattr(component, "base_power", 0.0)
-    return Ok(float(value))
+def get_gen_rating(
+    component: PLEXOSGenerator | PLEXOSBattery, context: PluginContext
+) -> Result[float, Any]:
+    """Get the rating of a generator or battery."""
+    return Ok(_get_rated_capacity(component))
+
+
+@getter
+def get_gen_base_power(
+    component: PLEXOSGenerator | PLEXOSBattery, context: PluginContext
+) -> Result[float, Any]:
+    """Get the base power (MVA base for per-unit calculations) of a
+    generator or battery. PLEXOS has no equivalent "base power" concept —
+    by Sienna/PSY convention, base_power is set equal to the unit's rated
+    capacity when not otherwise specified."""
+    value = getattr(component, "base_power", 0.0) or 0.0
+    if value:
+        return Ok(float(value))
+    return Ok(_get_rated_capacity(component))
 
 
 @getter
