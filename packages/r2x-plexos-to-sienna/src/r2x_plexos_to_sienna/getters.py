@@ -468,7 +468,13 @@ def _determine_fallback_slack_bus(context: PluginContext) -> str | None:
 
 @getter
 def is_slack_bus(component: PLEXOSNode, context: PluginContext) -> Result[ACBusTypes, Any]:
-    """Return ACBusTypes.SLACK if component.bustype == 1, else ACBusTypes.PQ.
+    """Return ACBusTypes.REF if component.is_slack_bus == 1, else ACBusTypes.PQ.
+
+    REF, not SLACK, is PowerSystems.jl's actual reference-bus type — its own
+    `slack_bus_check` looks for `ACBusTypes.REF` specifically and treats a
+    network with only SLACK-typed buses as having no slack bus at all, even
+    though the two are easy to conflate (both exist as distinct values on
+    both the Python and Julia side).
 
     Falls back to a deterministically chosen bus (see
     `_determine_fallback_slack_bus`) when no node in the source model sets
@@ -476,10 +482,10 @@ def is_slack_bus(component: PLEXOSNode, context: PluginContext) -> Result[ACBusT
     """
     value = getattr(component, "is_slack_bus", 0)
     if value == 1:
-        return Ok(ACBusTypes.SLACK)
+        return Ok(ACBusTypes.REF)
     fallback = _determine_fallback_slack_bus(context)
     if fallback is not None and component.name == fallback:
-        return Ok(ACBusTypes.SLACK)
+        return Ok(ACBusTypes.REF)
     return Ok(ACBusTypes.PQ)
 
 

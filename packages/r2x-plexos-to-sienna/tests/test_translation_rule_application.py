@@ -77,7 +77,7 @@ def test_plexos_node_translates_to_acbus(tmp_path) -> None:
     # Only node in the system and no is_slack_bus set anywhere — the
     # fallback deterministically designates it slack (PSY networks require
     # exactly one).
-    assert bus.bustype == ACBusTypes.SLACK
+    assert bus.bustype == ACBusTypes.REF
 
 
 def test_plexos_region_translates_to_area(tmp_path) -> None:

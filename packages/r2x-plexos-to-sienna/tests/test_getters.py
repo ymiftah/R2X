@@ -278,7 +278,7 @@ def test_basic_node_getters(tmp_path) -> None:
     # Neither node sets is_slack_bus and neither has connected generation,
     # so the fallback deterministically picks one (alphabetically first) —
     # PSY networks require exactly one slack bus.
-    assert getters.is_slack_bus(node, context).unwrap() == ACBusTypes.SLACK
+    assert getters.is_slack_bus(node, context).unwrap() == ACBusTypes.REF
     assert getters.is_slack_bus(other_node, context).unwrap() == ACBusTypes.PQ
 
     # Test slack bus explicitly set — no fallback needed, and other nodes
@@ -289,7 +289,7 @@ def test_basic_node_getters(tmp_path) -> None:
     pq_node = PLEXOSNode(name="PQ_1", is_slack_bus=0)
     slack_context.source_system.add_component(slack_node)
     slack_context.source_system.add_component(pq_node)
-    assert getters.is_slack_bus(slack_node, slack_context).unwrap() == ACBusTypes.SLACK
+    assert getters.is_slack_bus(slack_node, slack_context).unwrap() == ACBusTypes.REF
     assert getters.is_slack_bus(pq_node, slack_context).unwrap() == ACBusTypes.PQ
 
 
