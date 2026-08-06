@@ -23,7 +23,6 @@
     "field_map": {
       "name": "name",
       "uuid": "uuid",
-      "available": "units",
       "category": "category"
     },
     "getters": {
@@ -34,7 +33,8 @@
       "area": "get_node_area",
       "load_zone": "get_node_zone",
       "angle": "get_node_angle",
-      "ext": "get_node_ext"
+      "ext": "get_node_ext",
+      "available": "get_available_from_units"
     },
     "source_type": "PLEXOSNode",
     "target_type": "ACBus",
@@ -47,7 +47,6 @@
     "field_map": {
       "name": "name",
       "uuid": "uuid",
-      "available": "units",
       "category": "category"
     },
     "getters": {
@@ -56,7 +55,8 @@
       "reactive_power": "get_load_reactive_power",
       "max_active_power" : "get_load_max_active_power",
       "max_reactive_power" : "get_load_max_reactive_power",
-      "base_power" : "get_load_base_power"
+      "base_power" : "get_load_base_power",
+      "available": "get_available_from_units"
     },
     "source_type": "PLEXOSRegion",
     "target_type": "PowerLoad",
@@ -281,9 +281,7 @@
       "name": "name",
       "uuid": "uuid",
       "rating": "rating",
-      "category": "category",
-      "available": "units",
-      "status": "units"
+      "category": "category"
     },
     "getters": {
       "bus": "get_gen_bus",
@@ -295,6 +293,7 @@
       "must_run": "get_gen_must_run",
       "prime_mover_type": "get_prime_mover_type",
       "status": "get_gen_status",
+      "available": "get_available_from_units",
       "time_at_status": "get_time_at_status",
       "operation_cost": "get_thermal_operation_cost",
       "ramp_limits": "get_gen_ramp_limits",
@@ -587,12 +586,12 @@
     },
     "field_map": {
       "name": "name",
-      "available": "units",
       "uuid": "uuid"
     },
     "getters": {
       "active_power_flow_limits": "get_interface_active_power_flow_limits",
-      "direction_mapping": "get_interface_direction_mapping"
+      "direction_mapping": "get_interface_direction_mapping",
+      "available": "get_available_from_units"
     },
     "source_type": "PLEXOSInterface",
     "target_type": "TransmissionInterface",
@@ -603,13 +602,13 @@
       "category": "battery"
     },
     "field_map": {
-      "available": "units",
       "category": "category",
       "name": "name",
       "uuid": "uuid"
     },
     "getters": {
       "bus": "get_gen_bus",
+      "available": "get_available_from_units",
       "initial_storage_capacity_level": "get_initial_storage_capacity_level",
       "prime_mover_type": "get_prime_mover_type",
       "storage_technology_type": "get_storage_technology_type",

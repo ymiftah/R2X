@@ -786,10 +786,33 @@ def get_normalized_category(
 
 
 @getter
-def get_gen_status(component: PLEXOSGenerator, context: PluginContext) -> Result[int, Any]:
-    """Get the status of a generator."""
-    value = getattr(component, "units", "")
-    return Ok(int(value))
+def get_gen_status(component: PLEXOSGenerator, context: PluginContext) -> Result[bool, Any]:
+    """Get the on/off status of a generator: True if any units are in service."""
+    value = getattr(component, "units", "") or 0
+    return Ok(int(value) != 0)
+
+
+@getter
+def get_available_from_units(
+    component: PLEXOSGenerator
+    | PLEXOSBattery
+    | PLEXOSStorage
+    | PLEXOSNode
+    | PLEXOSRegion
+    | PLEXOSLine
+    | PLEXOSInterface,
+    context: PluginContext,
+) -> Result[bool, Any]:
+    """Get availability from a component's `units` count: True if units > 0.
+
+    `units` is a count of installed/in-service units (can be > 1), not a
+    boolean — target Sienna fields named `available` are booleans, so a
+    plain field_map ("available": "units") fails pydantic validation
+    whenever units != 0/1. Use this getter wherever `available` previously
+    read `units` directly.
+    """
+    value = getattr(component, "units", "") or 0
+    return Ok(int(value) != 0)
 
 
 @getter
