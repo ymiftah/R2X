@@ -1109,8 +1109,18 @@ def get_storage_target(component: PLEXOSGenerator, context: PluginContext) -> Re
 
 @getter
 def get_storage_cycle_limits(component: PLEXOSGenerator, context: PluginContext) -> Result[int, Any]:
-    """Get the cycle limits as an integer (use 'max_cycles' if available, else 10000)."""
-    value = getattr(component, "max_cycles", 10000)
+    """Get the cycle limits as an integer from 'max_cycles'.
+
+    PLEXOS uses 1e30 as an "unconstrained" sentinel for max_cycles; casting that
+    directly to int overflows the target schema's plain (non-Optional) int field
+    and 64-bit integer serialization. Falls back to the schema's own default
+    (10000) when unconstrained or unset.
+    """
+    _UNCONSTRAINED = 1e30  # noqa: N806
+    _DEFAULT = 10000  # noqa: N806
+    value = float(getattr(component, "max_cycles", _UNCONSTRAINED) or _UNCONSTRAINED)
+    if value >= _UNCONSTRAINED:
+        return Ok(_DEFAULT)
     return Ok(int(value))
 
 

@@ -26,6 +26,7 @@ from r2x_plexos_to_sienna.getters import (
     get_base_voltage,
     get_device_services,
     get_gen_start_types,
+    get_storage_cycle_limits,
     get_line_angle_limits,
     get_line_conductance,
     get_line_flow_limits,
@@ -184,6 +185,22 @@ def test_get_gen_start_types():
     node = cast(PLEXOSGenerator, types.SimpleNamespace())
     result = cast(Result[int, Any], get_gen_start_types(node, None))
     assert result.value == 1
+
+
+def test_get_storage_cycle_limits():
+    node = cast(PLEXOSGenerator, types.SimpleNamespace(max_cycles=500))
+    result = cast(Result[int, Any], get_storage_cycle_limits(node, None))
+    assert result.value == 500
+
+    # PLEXOS's "unconstrained" sentinel (1e30) must not be cast to int directly:
+    # it overflows the target schema's plain int field and 64-bit serialization.
+    node = cast(PLEXOSGenerator, types.SimpleNamespace(max_cycles=1e30))
+    result = cast(Result[int, Any], get_storage_cycle_limits(node, None))
+    assert result.value == 10000
+
+    node = cast(PLEXOSGenerator, types.SimpleNamespace())
+    result = cast(Result[int, Any], get_storage_cycle_limits(node, None))
+    assert result.value == 10000
 
 
 def test_get_prime_mover_type_default(monkeypatch):
