@@ -633,15 +633,5 @@
     "source_type": "PLEXOSBattery",
     "target_type": "EnergyReservoirStorage",
     "version": 1
-  },
-  {
-    "field_map": {},
-    "getters": {
-      "outage_transition_probability": "get_forced_outage_transition_probability",
-      "mean_time_to_recovery": "get_forced_outage_mean_time_to_recovery"
-    },
-    "source_type": "PLEXOSGenerator",
-    "target_type": "GeometricDistributionForcedOutage",
-    "version": 1
   }
 ]

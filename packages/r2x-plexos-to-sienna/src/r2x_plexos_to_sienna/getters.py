@@ -1240,21 +1240,3 @@ def get_reserve_max_output_fraction(component: PLEXOSReserve, context: PluginCon
 def get_reserve_deployed_fraction(component: PLEXOSReserve, context: PluginContext) -> Result[float, Any]:
     """Get the fraction of service procurement assumed to be actually deployed."""
     return Ok(float(getattr(component, "deployed_fraction", 1.0)))
-
-
-@getter
-def get_forced_outage_transition_probability(
-    component: PLEXOSGenerator, context: PluginContext
-) -> Result[float, Any]:
-    """Get the forced outage transition probability (forced_outage_rate as is)."""
-    value = getattr(component, "forced_outage_rate", 0.0) or 0.0
-    return Ok(float(value))
-
-
-@getter
-def get_forced_outage_mean_time_to_recovery(
-    component: PLEXOSGenerator, context: PluginContext
-) -> Result[float, Any]:
-    """Get the mean time to recovery (in hours)."""
-    value = getattr(component, "mean_time_to_repair", 0.0) or 0.0
-    return Ok(float(value))
