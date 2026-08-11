@@ -180,16 +180,8 @@ def test_get_line_losses_with_values():
 
 
 def test_get_gen_start_types():
-    node = cast(PLEXOSGenerator, types.SimpleNamespace(start_profile="hot"))
-    result = cast(Result[int, Any], get_gen_start_types(node, None))
-    assert result.value == 1
-    node = cast(PLEXOSGenerator, types.SimpleNamespace(start_profile="warm"))
-    result = cast(Result[int, Any], get_gen_start_types(node, None))
-    assert result.value == 2
-    node = cast(PLEXOSGenerator, types.SimpleNamespace(start_profile="cold"))
-    result = cast(Result[int, Any], get_gen_start_types(node, None))
-    assert result.value == 3
-    node = cast(PLEXOSGenerator, types.SimpleNamespace(start_profile="unknown"))
+    """No source field exists for start-type classification; always returns hot (1)."""
+    node = cast(PLEXOSGenerator, types.SimpleNamespace())
     result = cast(Result[int, Any], get_gen_start_types(node, None))
     assert result.value == 1
 

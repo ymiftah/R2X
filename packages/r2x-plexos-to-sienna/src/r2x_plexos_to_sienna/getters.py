@@ -737,7 +737,7 @@ def get_hydro_gen_operation_cost(
         HydroGenerationCost(
             fixed=fom_charge,
             variable=CostCurve(
-                value_curve=LinearCurve(1.0), power_units=NATURAL_UNITS, vom_cost=LinearCurve(vom_charge)
+                value_curve=LinearCurve(0.0), power_units=NATURAL_UNITS, vom_cost=LinearCurve(vom_charge)
             ),
         )
     )
@@ -762,7 +762,7 @@ def get_renewable_operation_cost(
     return Ok(
         RenewableGenerationCost(
             fixed=fom_charge,
-            variable=CostCurve(value_curve=LinearCurve(1.0), power_units=NATURAL_UNITS, vom_cost=LinearCurve(vom_charge)),
+            variable=CostCurve(value_curve=LinearCurve(0.0), power_units=NATURAL_UNITS, vom_cost=LinearCurve(vom_charge)),
             curtailment_cost=zero_curve,
         )
     )
@@ -779,13 +779,13 @@ def get_gen_reactive_power(component: PLEXOSGenerator, context: PluginContext) -
 def get_gen_start_types(component: PLEXOSGenerator, context: PluginContext) -> Result[int, Any]:
     """Get the start type of a generator as an integer: 1=hot, 2=warm, 3=cold.
 
-    Note: PLEXOSGenerator has no 'start_type' field; this getter is not exercised
-    by the AEMO ISP dataset (ThermalMultiStart rule produces 0 components). Included
-    for API completeness with other R2X models.
+    PLEXOSGenerator has no field classifying starts as hot/warm/cold (`start_profile`
+    is an unrelated MW ramp-up regime, not a start-type enum), so there is no source
+    data to read here. Always returns 1 (hot). Not exercised by the AEMO ISP dataset
+    (ThermalMultiStart rule produces 0 components); included for API completeness
+    with other R2X models.
     """
-    start_profile = str(getattr(component, "start_profile", "hot") or "hot").lower()
-    mapping = {"hot": 1, "warm": 2, "cold": 3}
-    return Ok(mapping.get(start_profile, 1))
+    return Ok(1)
 
 
 def _get_rated_capacity(component: Any) -> float:
