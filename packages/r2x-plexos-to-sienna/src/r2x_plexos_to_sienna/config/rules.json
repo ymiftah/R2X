@@ -121,7 +121,9 @@
       "g": "get_line_conductance",
       "arc": "get_line_arc",
       "reactive_power_flow": "get_reactive_power_flow",
-      "angle_limits": "get_line_angle_limits"
+      "angle_limits": "get_line_angle_limits",
+      "rating_b": "get_line_rating_b",
+      "rating_c": "get_line_rating_c"
     },
     "source_type": "PLEXOSLine",
     "target_type": "Line",
@@ -148,7 +150,9 @@
       "reactive_power_flow": "get_reactive_power_flow",
       "angle_limits": "get_line_angle_limits",
       "flow_limits": "get_line_flow_limits",
-      "losses": "get_line_losses"
+      "losses": "get_line_losses",
+      "rating_b": "get_line_rating_b",
+      "rating_c": "get_line_rating_c"
     },
     "filter": {
       "field": "category",
@@ -628,6 +632,16 @@
     },
     "source_type": "PLEXOSBattery",
     "target_type": "EnergyReservoirStorage",
+    "version": 1
+  },
+  {
+    "field_map": {},
+    "getters": {
+      "outage_transition_probability": "get_forced_outage_transition_probability",
+      "mean_time_to_recovery": "get_forced_outage_mean_time_to_recovery"
+    },
+    "source_type": "PLEXOSGenerator",
+    "target_type": "GeometricDistributionForcedOutage",
     "version": 1
   }
 ]

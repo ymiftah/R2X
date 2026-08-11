@@ -596,6 +596,24 @@ def get_line_losses(component: PLEXOSLine, context: PluginContext) -> Result[flo
 
 
 @getter
+def get_line_rating_b(component: PLEXOSLine, context: PluginContext) -> Result[float, Any]:
+    """Get the second thermal rating (contingency limit) of a line."""
+    value = getattr(component, "outage_max_rating", None)
+    if value is not None:
+        return Ok(float(value))
+    return Ok(None)
+
+
+@getter
+def get_line_rating_c(component: PLEXOSLine, context: PluginContext) -> Result[float, Any]:
+    """Get the third thermal rating (overload limit) of a line."""
+    value = getattr(component, "overload_max_rating", None)
+    if value is not None:
+        return Ok(float(value))
+    return Ok(None)
+
+
+@getter
 def get_active_power_limits_from(component: PLEXOSLine, context: PluginContext) -> Result[MinMax, Any]:
     """Get the active power limits (min, max) at the 'from' end of an HVDC line."""
     min_limit = getattr(component, "min_active_power_from", 0.0)
@@ -712,12 +730,14 @@ def get_gen_bus(
 def get_hydro_gen_operation_cost(
     component: PLEXOSGenerator, context: PluginContext
 ) -> Result[HydroGenerationCost, ValueError]:
-    """Return zeroed hydro operation cost."""
+    """Build hydro generation operation cost from vom_charge and fom_charge."""
+    fom_charge = float(getattr(component, "fom_charge", 0.0) or 0.0)
+    vom_charge = float(getattr(component, "vom_charge", 0.0) or 0.0)
     return Ok(
         HydroGenerationCost(
-            fixed=0.0,
+            fixed=fom_charge,
             variable=CostCurve(
-                value_curve=LinearCurve(10), power_units=NATURAL_UNITS, vom_cost=LinearCurve(5.0)
+                value_curve=LinearCurve(1.0), power_units=NATURAL_UNITS, vom_cost=LinearCurve(vom_charge)
             ),
         )
     )
@@ -735,12 +755,14 @@ def get_hydro_reservoir_operation_cost(
 def get_renewable_operation_cost(
     component: PLEXOSGenerator, context: PluginContext
 ) -> Result[RenewableGenerationCost, ValueError]:
-    """Return zeroed renewable operation cost."""
+    """Build renewable operation cost from vom_charge and fom_charge."""
+    fom_charge = float(getattr(component, "fom_charge", 0.0) or 0.0)
+    vom_charge = float(getattr(component, "vom_charge", 0.0) or 0.0)
     zero_curve = CostCurve(value_curve=LinearCurve(0.0), power_units=NATURAL_UNITS)
     return Ok(
         RenewableGenerationCost(
-            fixed=0.0,
-            variable=zero_curve,
+            fixed=fom_charge,
+            variable=CostCurve(value_curve=LinearCurve(1.0), power_units=NATURAL_UNITS, vom_cost=LinearCurve(vom_charge)),
             curtailment_cost=zero_curve,
         )
     )
@@ -755,11 +777,15 @@ def get_gen_reactive_power(component: PLEXOSGenerator, context: PluginContext) -
 
 @getter
 def get_gen_start_types(component: PLEXOSGenerator, context: PluginContext) -> Result[int, Any]:
-    """Get the start type of a generator as an integer: 1=hot, 2=warm, 3=cold."""
-    start_type = getattr(component, "start_type", "hot")
+    """Get the start type of a generator as an integer: 1=hot, 2=warm, 3=cold.
+
+    Note: PLEXOSGenerator has no 'start_type' field; this getter is not exercised
+    by the AEMO ISP dataset (ThermalMultiStart rule produces 0 components). Included
+    for API completeness with other R2X models.
+    """
+    start_profile = str(getattr(component, "start_profile", "hot") or "hot").lower()
     mapping = {"hot": 1, "warm": 2, "cold": 3}
-    value = mapping.get(str(start_type).lower(), 1)
-    return Ok(value)
+    return Ok(mapping.get(start_profile, 1))
 
 
 def _get_rated_capacity(component: Any) -> float:
@@ -823,9 +849,9 @@ def get_gen_active_power_losses(component: PLEXOSGenerator, context: PluginConte
 
 @getter
 def get_gen_must_run(component: PLEXOSGenerator, context: PluginContext) -> Result[bool, Any]:
-    """Get the must-run status of a generator."""
-    value = getattr(component, "must_run", True)
-    return Ok(bool(value))
+    """Get the must-run status of a generator (True if must_run_units > 0)."""
+    value = getattr(component, "must_run_units", 0)
+    return Ok(int(value) > 0)
 
 
 @getter
@@ -909,15 +935,16 @@ def get_time_at_status(component: PLEXOSGenerator, context: PluginContext) -> Re
 def get_thermal_operation_cost(
     component: PLEXOSGenerator, context: PluginContext
 ) -> Result[ThermalGenerationCost, ValueError]:
-    """Build thermal operation cost from heat_rate, fuel_price, vom_charge, and start_cost."""
+    """Build thermal operation cost from heat_rate, fuel_price, vom_charge, start_cost, and shutdown_cost."""
     heat_rate = float(getattr(component, "heat_rate", 0.0) or 0.0)
     fuel_price = float(getattr(component, "fuel_price", 0.0) or 0.0)
     vom_charge = float(getattr(component, "vom_charge", 0.0) or 0.0)
     start_cost = float(getattr(component, "start_cost", 0.0) or 0.0)
+    shutdown_cost = float(getattr(component, "shutdown_cost", 0.0) or 0.0)
     return Ok(
         ThermalGenerationCost(
             fixed=0.0,
-            shut_down=0.0,
+            shut_down=shutdown_cost,
             start_up=start_cost,
             variable=FuelCurve(
                 value_curve=LinearCurve(heat_rate),
@@ -1082,8 +1109,8 @@ def get_storage_target(component: PLEXOSGenerator, context: PluginContext) -> Re
 
 @getter
 def get_storage_cycle_limits(component: PLEXOSGenerator, context: PluginContext) -> Result[int, Any]:
-    """Get the cycle limits as an integer (use 'cycle_limits' if available, else 0)."""
-    value = getattr(component, "cycle_limits", 10000)
+    """Get the cycle limits as an integer (use 'max_cycles' if available, else 10000)."""
+    value = getattr(component, "max_cycles", 10000)
     return Ok(int(value))
 
 
@@ -1213,3 +1240,21 @@ def get_reserve_max_output_fraction(component: PLEXOSReserve, context: PluginCon
 def get_reserve_deployed_fraction(component: PLEXOSReserve, context: PluginContext) -> Result[float, Any]:
     """Get the fraction of service procurement assumed to be actually deployed."""
     return Ok(float(getattr(component, "deployed_fraction", 1.0)))
+
+
+@getter
+def get_forced_outage_transition_probability(
+    component: PLEXOSGenerator, context: PluginContext
+) -> Result[float, Any]:
+    """Get the forced outage transition probability (forced_outage_rate as is)."""
+    value = getattr(component, "forced_outage_rate", 0.0) or 0.0
+    return Ok(float(value))
+
+
+@getter
+def get_forced_outage_mean_time_to_recovery(
+    component: PLEXOSGenerator, context: PluginContext
+) -> Result[float, Any]:
+    """Get the mean time to recovery (in hours)."""
+    value = getattr(component, "mean_time_to_repair", 0.0) or 0.0
+    return Ok(float(value))
